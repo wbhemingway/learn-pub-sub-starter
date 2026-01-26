@@ -12,18 +12,30 @@ import (
 
 func main() {
 	rmqAddr := "amqp://guest:guest@localhost:5672/"
-	rmqConn, err := amqp.Dial(rmqAddr)
+	conn, err := amqp.Dial(rmqAddr)
 	if err != nil {
 		log.Fatalf("Could not make RMQ connection to %s: %v", rmqAddr, err)
 	}
 
-	defer rmqConn.Close()
+	defer conn.Close()
 	fmt.Printf("Connection to RMQ adress %s was successful!\n", rmqAddr)
 
-	amqpChann, err := rmqConn.Channel()
+	publishCh, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Could not make RMQ cchannel: %v", err)
 	}
+	ch, queue, err := pubsub.DeclareAndBind(conn,
+		routing.ExchangePerilTopic,
+		"game_logs",
+		"game_logs.*",
+		pubsub.DurableQueue,
+	)
+
+	if err != nil {
+		log.Fatalf("could not subscribe to peril topic: %v", err)
+	}
+	fmt.Printf("Queue %s declared and bound!\n", queue.Name)
+	defer ch.Close()
 
 	fmt.Println("Starting Peril server...")
 
@@ -34,13 +46,13 @@ func main() {
 		switch cmds[0] {
 		case "pause":
 			fmt.Println("Sending pause message")
-			pubsub.PublishJSON(amqpChann,
+			pubsub.PublishJSON(publishCh,
 				routing.ExchangePerilDirect,
 				routing.PauseKey,
 				routing.PlayingState{IsPaused: true})
 		case "resume":
 			fmt.Println("Sending resume message")
-			pubsub.PublishJSON(amqpChann,
+			pubsub.PublishJSON(publishCh,
 				routing.ExchangePerilDirect,
 				routing.PauseKey,
 				routing.PlayingState{IsPaused: false})
