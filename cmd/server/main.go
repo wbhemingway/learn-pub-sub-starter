@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -26,13 +25,34 @@ func main() {
 		log.Fatalf("Could not make RMQ cchannel: %v", err)
 	}
 
-	pubsub.PublishJSON(amqpChann, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
-
 	fmt.Println("Starting Peril server...")
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
+	gamelogic.PrintServerHelp()
+
+loop:
+	for {
+		cmds := gamelogic.GetInput()
+		switch cmds[0] {
+		case "pause":
+			fmt.Println("Sending pause message")
+			pubsub.PublishJSON(amqpChann,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{IsPaused: true})
+		case "resume":
+			fmt.Println("Sending resume message")
+			pubsub.PublishJSON(amqpChann,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{IsPaused: false})
+		case "quit":
+			fmt.Println("Server exiting")
+			break loop
+		default:
+			fmt.Println("That command is not understood.")
+		}
+
+	}
 
 	fmt.Println("Peril server is shutting down...")
 }
