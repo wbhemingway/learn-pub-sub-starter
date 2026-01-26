@@ -29,7 +29,6 @@ func main() {
 
 	gamelogic.PrintServerHelp()
 
-loop:
 	for {
 		cmds := gamelogic.GetInput()
 		switch cmds[0] {
@@ -47,7 +46,7 @@ loop:
 				routing.PlayingState{IsPaused: false})
 		case "quit":
 			fmt.Println("Server exiting")
-			break loop
+			return
 		default:
 			fmt.Println("That command is not understood.")
 		}
