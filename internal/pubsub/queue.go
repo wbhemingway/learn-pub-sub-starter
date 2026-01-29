@@ -22,7 +22,7 @@ func DeclareAndBind(
 	if err != nil {
 		return nil, amqp.Queue{}, err
 	}
-	
+
 	queue, err := chann.QueueDeclare(queueName,
 		queueType == DurableQueue,
 		queueType == TransientQueue,
@@ -32,11 +32,11 @@ func DeclareAndBind(
 	if err != nil {
 		return nil, amqp.Queue{}, err
 	}
-	
-	err = chann.QueueBind(queueName, key, exchange, false, nil)
+
+	err = chann.QueueBind(queue.Name, key, exchange, false, nil)
 	if err != nil {
 		return nil, amqp.Queue{}, err
 	}
-	
+
 	return chann, queue, nil
 }
