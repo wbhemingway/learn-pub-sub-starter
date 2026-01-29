@@ -62,8 +62,5 @@ func main() {
 		default:
 			fmt.Println("That command is not understood.")
 		}
-
 	}
-
-	fmt.Println("Peril server is shutting down...")
 }

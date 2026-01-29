@@ -12,22 +12,39 @@ import (
 
 func main() {
 	rmqAddr := "amqp://guest:guest@localhost:5672/"
-	rmqConn, err := amqp.Dial(rmqAddr)
+	conn, err := amqp.Dial(rmqAddr)
 	if err != nil {
 		log.Fatalf("Could not make RMQ connection to %s: %v", rmqAddr, err)
 	}
 
-	defer rmqConn.Close()
+	defer conn.Close()
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Could not make a channel with the connection: %v", err)
+	}
+
 	fmt.Println("Starting Peril client...")
 	userName, err := gamelogic.ClientWelcome()
 	gs := gamelogic.NewGameState(userName)
 
-	err = pubsub.SubscribeJSON(rmqConn,
+	err = pubsub.SubscribeJSON(conn,
 		routing.ExchangePerilDirect,
-		fmt.Sprintf("%s.%s", routing.PauseKey, gs.GetUsername()),
+		routing.PauseKey+"."+gs.GetUsername(),
 		routing.PauseKey,
 		pubsub.TransientQueue,
-		handlerPause(gs))
+		handlerPause(gs),
+	)
+	if err != nil {
+		log.Fatalf("could not subscribe to pause: %v", err)
+	}
+
+	err = pubsub.SubscribeJSON(conn,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+gs.GetUsername(),
+		routing.ArmyMovesPrefix+".*",
+		pubsub.TransientQueue,
+		handlerMove(gs),
+	)
 	if err != nil {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
@@ -41,9 +58,19 @@ func main() {
 				fmt.Printf("Bad spawn command given: %v\n", err)
 			}
 		case "move":
-			_, err := gs.CommandMove(cmds)
+			am, err := gs.CommandMove(cmds)
 			if err != nil {
 				fmt.Printf("Bad move command given: %v\n", err)
+			}
+			err = pubsub.PublishJSON(ch,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+gs.GetUsername(),
+				am,
+			)
+			if err != nil {
+				fmt.Printf("Failed to publish move command: %v\n", err)
+			} else {
+				fmt.Println("Move was published successfully")
 			}
 		case "status":
 			gs.CommandStatus()
