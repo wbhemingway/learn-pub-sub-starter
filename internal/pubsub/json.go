@@ -4,8 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+type AckType int
+
+const (
+	Ack AckType = iota
+	NackDiscard
+	NackRequeue
 )
 
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
@@ -27,7 +36,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType,
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -43,7 +52,7 @@ func SubscribeJSON[T any](
 		err := json.Unmarshal(data, &target)
 		return target, err
 	}
-	
+
 	go func() {
 		defer ch.Close()
 		for msg := range msgs {
@@ -51,8 +60,18 @@ func SubscribeJSON[T any](
 			if err != nil {
 				fmt.Printf("could not unmarshal message : %v\n", err)
 			}
-			handler(target)
-			msg.Ack(false)
+			ack := handler(target)
+			switch ack {
+			case Ack:
+				msg.Ack(false)
+				log.Print("message acknowledged")
+			case NackDiscard:
+				msg.Nack(false, false)
+				log.Print("message discarded")
+			case NackRequeue:
+				msg.Nack(false, true)
+				log.Print("message requeued")
+			}
 		}
 	}()
 	return nil
