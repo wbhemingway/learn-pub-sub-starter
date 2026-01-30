@@ -27,7 +27,8 @@ func main() {
 	userName, err := gamelogic.ClientWelcome()
 	gs := gamelogic.NewGameState(userName)
 
-	err = pubsub.SubscribeJSON(conn,
+	err = pubsub.SubscribeJSON(
+		conn,
 		routing.ExchangePerilDirect,
 		routing.PauseKey+"."+gs.GetUsername(),
 		routing.PauseKey,
@@ -38,16 +39,26 @@ func main() {
 		log.Fatalf("could not subscribe to pause: %v", err)
 	}
 
-	err = pubsub.SubscribeJSON(conn,
+	err = pubsub.SubscribeJSON(
+		conn,
 		routing.ExchangePerilTopic,
 		routing.ArmyMovesPrefix+"."+gs.GetUsername(),
 		routing.ArmyMovesPrefix+".*",
 		pubsub.TransientQueue,
-		handlerMove(gs),
+		handlerMove(gs, ch),
 	)
 	if err != nil {
-		log.Fatalf("could not subscribe to pause: %v", err)
+		log.Fatalf("could not subscribe to army moves: %v", err)
 	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		routing.WarRecognitionsPrefix+".*",
+		pubsub.DurableQueue,
+		handlerWar(gs),
+	)
 
 	for {
 		cmds := gamelogic.GetInput()

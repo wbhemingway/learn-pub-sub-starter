@@ -23,12 +23,14 @@ func DeclareAndBind(
 		return nil, amqp.Queue{}, err
 	}
 
-	queue, err := chann.QueueDeclare(queueName,
+	queue, err := chann.QueueDeclare(
+		queueName,
 		queueType == DurableQueue,
 		queueType == TransientQueue,
 		queueType == TransientQueue,
 		false,
-		amqp.Table{"x-dead-letter-exchange": "peril_dlx"})
+		amqp.Table{"x-dead-letter-exchange": "peril_dlx"},
+	)
 	if err != nil {
 		return nil, amqp.Queue{}, err
 	}
