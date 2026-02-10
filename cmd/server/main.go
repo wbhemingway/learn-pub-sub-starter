@@ -24,18 +24,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not make RMQ cchannel: %v", err)
 	}
-	ch, queue, err := pubsub.DeclareAndBind(conn,
-		routing.ExchangePerilTopic,
-		"game_logs",
-		"game_logs.*",
-		pubsub.DurableQueue,
-	)
+	err = pubsub.SubscribeGob(
+			conn,
+			routing.ExchangePerilTopic,
+			routing.GameLogSlug,
+			routing.GameLogSlug+".*",
+			pubsub.DurableQueue,
+			handlerLogs(),
+		)
+		if err != nil {
+			log.Fatalf("could not starting consuming logs: %v", err)
+		}
 
 	if err != nil {
 		log.Fatalf("could not subscribe to peril topic: %v", err)
 	}
-	fmt.Printf("Queue %s declared and bound!\n", queue.Name)
-	defer ch.Close()
 
 	fmt.Println("Starting Peril server...")
 
