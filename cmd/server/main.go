@@ -25,16 +25,16 @@ func main() {
 		log.Fatalf("Could not make RMQ cchannel: %v", err)
 	}
 	err = pubsub.SubscribeGob(
-			conn,
-			routing.ExchangePerilTopic,
-			routing.GameLogSlug,
-			routing.GameLogSlug+".*",
-			pubsub.DurableQueue,
-			handlerLogs(),
-		)
-		if err != nil {
-			log.Fatalf("could not starting consuming logs: %v", err)
-		}
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug+".*",
+		pubsub.DurableQueue,
+		handlerLogs(),
+	)
+	if err != nil {
+		log.Fatalf("could not starting consuming logs: %v", err)
+	}
 
 	if err != nil {
 		log.Fatalf("could not subscribe to peril topic: %v", err)
@@ -46,6 +46,9 @@ func main() {
 
 	for {
 		cmds := gamelogic.GetInput()
+		if len(cmds) == 0 {
+			continue
+		}
 		switch cmds[0] {
 		case "pause":
 			fmt.Println("Sending pause message")
